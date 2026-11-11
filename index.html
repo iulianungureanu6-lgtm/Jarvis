@@ -118,7 +118,7 @@
       <button id="wakeBtn" title="Start the conversation by saying “Jarvis”">👂 Wake word: off</button>
       <button id="fsBtn">⛶ Full screen</button>
     </div>
-    <div class="note" id="note">Auto-ends after 45 s of silence to save minutes.</div>
+    <div class="note" id="note">Auto-ends after 2 min of silence to save minutes.</div>
   </div>
 </div>
 
@@ -30231,7 +30231,7 @@ registerProcessor("scribeAudioProcessor@bd293b92cef79b80", ScribeAudioProcessor)
 <script>
 (() => {
   const AGENT_ID = "agent_0901m747vxwhfhs9mfmdfa2z3ct9";
-  const IDLE_MS = 45000;
+  const IDLE_MS = 120000;
   const $ = id => document.getElementById(id);
   const { Conversation } = window.ElevenLabsClient || {};
   let conv = null, starting = false, idleTimer = null, raf = 0;
