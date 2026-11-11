@@ -30279,21 +30279,34 @@ registerProcessor("scribeAudioProcessor@bd293b92cef79b80", ScribeAudioProcessor)
     if(!Conversation){ note("The voice engine failed to load. Check your internet connection and reload.", true); return; }
     starting = true; wake.pause();
     setMode("connecting"); setStatus("Connecting","busy"); $("hint").textContent = "Connecting…";
+    // 1) Microphone check, on its own
     try{
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw Object.assign(new Error("This browser view has no microphone access. Open the link in Safari or Chrome."), { name:"NoMediaDevices" });
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+      s.getTracks().forEach(t => t.stop());
+    }catch(e){
+      const n = (e && e.name) || "";
+      note(n === "NotAllowedError"
+        ? "Microphone blocked by the browser. iPhone: Settings → Apps → Safari → Microphone → Allow (or aA in the address bar → Website Settings → Microphone → Allow), then reload."
+        : "Microphone error: " + n + " " + ((e && e.message) || ""), true);
+      starting = false; conv = null; cleanup(); return;
+    }
+    // 2) Connect to Jarvis
+    try{
       conv = await Conversation.startSession({
         agentId: AGENT_ID,
         connectionType: "websocket",
         onConnect: () => { setStatus("Online","on"); $("hint").textContent = "Listening — just speak"; $("talkBtn").hidden = true; $("endBtn").hidden = false; resetIdle(); },
-        onDisconnect: () => { cleanup(); },
+        onDisconnect: (d) => { if(d && d.reason === "error") note("Disconnected: " + (d.message || d.closeReason || "error") + (d.closeCode ? " (" + d.closeCode + ")" : ""), true); cleanup(); },
         onError: (m) => { note("Voice error: " + m, true); },
         onModeChange: ({mode}) => { setMode(mode); $("hint").textContent = mode==="speaking" ? "Jarvis is speaking" : "Listening — just speak"; resetIdle(); },
         onMessage: (p) => { addMsg(p.role || (p.source==="ai"?"agent":"user"), p.message); resetIdle(); },
       });
       raf = requestAnimationFrame(animate);
     }catch(e){
-      const msg = (e && (e.message || e.name)) || String(e);
-      note(/denied|NotAllowed|Permission/i.test(msg) ? "Microphone blocked. Allow the microphone for this page in Chrome and try again." : "Couldn't connect: " + msg, true);
+      let msg = "";
+      try{ msg = (e && (e.message || e.reason || e.name)) || JSON.stringify(e) || String(e); }catch{ msg = String(e); }
+      note("Couldn't reach Jarvis (" + location.hostname + "): " + msg, true);
       conv = null; cleanup();
     }finally{ starting = false; }
   }
